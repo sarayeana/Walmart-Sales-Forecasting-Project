@@ -635,7 +635,7 @@ Possible future improvements include:
 
 # 👤 Author
 
-**Syna**
+**Sara Yeana**
 
 Aspiring Data Analyst / Business Intelligence Professional
 
