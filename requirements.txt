@@ -1,6 +1,7 @@
 pandas
 numpy
 matplotlib
+seaborn
 scikit-learn
 xgboost
 lightgbm
@@ -8,3 +9,6 @@ prophet
 plotly
 joblib
 jupyter
+notebook
+streamlit
+plotly
