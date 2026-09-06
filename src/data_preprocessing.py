@@ -1,494 +1,479 @@
+from pathlib import Path
+
 import pandas as pd
 
 
 # ============================================================
-# WALMART SALES FORECASTING
-# DATA PREPROCESSING
+# PATH CONFIGURATION
 # ============================================================
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+DATA_DIR = PROJECT_ROOT / "data"
+RAW_DATA_DIR = DATA_DIR / "raw"
+PROCESSED_DATA_DIR = DATA_DIR / "processed"
 
 
 # ============================================================
-# 1. LOAD DATASETS
+# FILE PATHS
 # ============================================================
+
+TRAIN_PATH = RAW_DATA_DIR / "train.csv"
+TEST_PATH = RAW_DATA_DIR / "test.csv"
+FEATURES_PATH = RAW_DATA_DIR / "features.csv"
+STORES_PATH = RAW_DATA_DIR / "stores.csv"
+
+
+# ============================================================
+# REQUIRED COLUMNS
+# ============================================================
+
+TRAIN_REQUIRED_COLUMNS = [
+    "Store",
+    "Dept",
+    "Date",
+    "Weekly_Sales",
+    "IsHoliday"
+]
+
+TEST_REQUIRED_COLUMNS = [
+    "Store",
+    "Dept",
+    "Date",
+    "IsHoliday"
+]
+
+FEATURES_REQUIRED_COLUMNS = [
+    "Store",
+    "Date",
+    "Temperature",
+    "Fuel_Price",
+    "CPI",
+    "Unemployment",
+    "IsHoliday"
+]
+
+STORES_REQUIRED_COLUMNS = [
+    "Store",
+    "Type",
+    "Size"
+]
+
+
+# ============================================================
+# DATA LOADING
+# ============================================================
+
+def load_csv(path):
+    """
+    Load a CSV file into a pandas DataFrame.
+    """
+
+    path = Path(path)
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"File not found: {path}"
+        )
+
+    return pd.read_csv(path)
+
 
 def load_walmart_data(
-    train_path="data/raw/train.csv",
-    test_path="data/raw/test.csv",
-    features_path="data/raw/features.csv",
-    stores_path="data/raw/stores.csv"
+    train_path=TRAIN_PATH,
+    test_path=TEST_PATH,
+    features_path=FEATURES_PATH,
+    stores_path=STORES_PATH
 ):
     """
-    Load all four Walmart datasets.
+    Load all raw Walmart datasets.
 
     Returns:
-        train
-        test
-        features
-        stores
+        train, test, features, stores
     """
 
-    train = pd.read_csv(train_path)
-    test = pd.read_csv(test_path)
-    features = pd.read_csv(features_path)
-    stores = pd.read_csv(stores_path)
+    train = load_csv(train_path)
+    test = load_csv(test_path)
+    features = load_csv(features_path)
+    stores = load_csv(stores_path)
 
     return train, test, features, stores
 
 
 # ============================================================
-# 2. CONVERT DATE COLUMNS
+# DATE PROCESSING
 # ============================================================
 
-def convert_dates(
-    train,
-    test,
-    features
-):
+def convert_date_column(df, column="Date"):
     """
-    Convert Date columns to datetime format.
+    Convert a date column to pandas datetime.
     """
 
-    train = train.copy()
-    test = test.copy()
-    features = features.copy()
+    df = df.copy()
 
-    train["Date"] = pd.to_datetime(
-        train["Date"]
-    )
-
-    test["Date"] = pd.to_datetime(
-        test["Date"]
-    )
-
-    features["Date"] = pd.to_datetime(
-        features["Date"]
-    )
-
-    return train, test, features
-
-
-# ============================================================
-# 3. TRAIN DATA VALIDATION
-# ============================================================
-
-def validate_train_data(train):
-    """
-    Validate Walmart train dataset.
-    """
-
-    required_columns = [
-        "Store",
-        "Dept",
-        "Date",
-        "Weekly_Sales",
-        "IsHoliday"
-    ]
-
-    missing_columns = [
-        column
-        for column in required_columns
-        if column not in train.columns
-    ]
-
-    return missing_columns
-
-
-# ============================================================
-# 4. TEST DATA VALIDATION
-# ============================================================
-
-def validate_test_data(test):
-    """
-    Validate Walmart test dataset.
-    """
-
-    required_columns = [
-        "Store",
-        "Dept",
-        "Date",
-        "IsHoliday"
-    ]
-
-    missing_columns = [
-        column
-        for column in required_columns
-        if column not in test.columns
-    ]
-
-    return missing_columns
-
-
-# ============================================================
-# 5. FEATURES DATA VALIDATION
-# ============================================================
-
-def validate_features_data(features):
-    """
-    Validate Walmart features dataset.
-    """
-
-    required_columns = [
-        "Store",
-        "Date",
-        "Temperature",
-        "Fuel_Price",
-        "MarkDown1",
-        "MarkDown2",
-        "MarkDown3",
-        "MarkDown4",
-        "MarkDown5",
-        "CPI",
-        "Unemployment",
-        "IsHoliday"
-    ]
-
-    missing_columns = [
-        column
-        for column in required_columns
-        if column not in features.columns
-    ]
-
-    return missing_columns
-
-
-# ============================================================
-# 6. STORES DATA VALIDATION
-# ============================================================
-
-def validate_stores_data(stores):
-    """
-    Validate Walmart stores dataset.
-    """
-
-    required_columns = [
-        "Store",
-        "Type",
-        "Size"
-    ]
-
-    missing_columns = [
-        column
-        for column in required_columns
-        if column not in stores.columns
-    ]
-
-    return missing_columns
-
-
-# ============================================================
-# 7. MISSING VALUE ANALYSIS
-# ============================================================
-
-def check_missing_values(df):
-    """
-    Return missing-value counts.
-    """
-
-    return (
-        df.isnull()
-        .sum()
-        .sort_values(
-            ascending=False
+    if column not in df.columns:
+        raise ValueError(
+            f"Column '{column}' not found."
         )
-    )
 
-
-# ============================================================
-# 8. MARKDOWN MISSING VALUES
-# ============================================================
-
-def fill_markdown_values(features):
-    """
-    Fill missing Walmart markdown values with zero.
-
-    Markdown columns:
-        MarkDown1
-        MarkDown2
-        MarkDown3
-        MarkDown4
-        MarkDown5
-    """
-
-    features = features.copy()
-
-    markdown_columns = [
-        "MarkDown1",
-        "MarkDown2",
-        "MarkDown3",
-        "MarkDown4",
-        "MarkDown5"
-    ]
-
-    features[markdown_columns] = (
-        features[markdown_columns]
-        .fillna(0)
-    )
-
-    return features
-
-
-# ============================================================
-# 9. CPI AND UNEMPLOYMENT
-# ============================================================
-
-def fill_economic_features(features):
-    """
-    Handle missing CPI and Unemployment values.
-    """
-
-    features = features.copy()
-
-    economic_columns = [
-        "CPI",
-        "Unemployment"
-    ]
-
-    features[economic_columns] = (
-        features[economic_columns]
-        .ffill()
-        .bfill()
-    )
-
-    return features
-
-
-# ============================================================
-# 10. DUPLICATE CHECK
-# ============================================================
-
-def check_duplicates(df):
-    """
-    Count duplicate rows.
-    """
-
-    return df.duplicated().sum()
-
-
-# ============================================================
-# 11. BUSINESS KEY DUPLICATES
-# ============================================================
-
-def check_train_duplicates(train):
-    """
-    Check duplicate Store + Dept + Date records.
-    """
-
-    return train.duplicated(
-        subset=[
-            "Store",
-            "Dept",
-            "Date"
-        ]
-    ).sum()
-
-
-def check_test_duplicates(test):
-    """
-    Check duplicate Store + Dept + Date records.
-    """
-
-    return test.duplicated(
-        subset=[
-            "Store",
-            "Dept",
-            "Date"
-        ]
-    ).sum()
-
-
-# ============================================================
-# 12. NEGATIVE WEEKLY SALES
-# ============================================================
-
-def check_negative_sales(train):
-    """
-    Return records with negative Weekly_Sales.
-    """
-
-    return train[
-        train["Weekly_Sales"] < 0
-    ].copy()
-
-
-# ============================================================
-# 13. MERGE TRAIN WITH FEATURES
-# ============================================================
-
-def merge_train_features(
-    train,
-    features
-):
-    """
-    Merge train data with Walmart external features.
-
-    Join keys:
-        Store
-        Date
-    """
-
-    merged = train.merge(
-        features,
-        on=[
-            "Store",
-            "Date"
-        ],
-        how="left",
-        suffixes=(
-            "",
-            "_feature"
-        )
-    )
-
-    return merged
-
-
-# ============================================================
-# 14. MERGE TEST WITH FEATURES
-# ============================================================
-
-def merge_test_features(
-    test,
-    features
-):
-    """
-    Merge test data with Walmart external features.
-
-    Join keys:
-        Store
-        Date
-    """
-
-    merged = test.merge(
-        features,
-        on=[
-            "Store",
-            "Date"
-        ],
-        how="left",
-        suffixes=(
-            "",
-            "_feature"
-        )
-    )
-
-    return merged
-
-
-# ============================================================
-# 15. MERGE WITH STORE INFORMATION
-# ============================================================
-
-def merge_store_information(
-    df,
-    stores
-):
-    """
-    Add store Type and Size information.
-    """
-
-    df = df.merge(
-        stores[
-            [
-                "Store",
-                "Type",
-                "Size"
-            ]
-        ],
-        on="Store",
-        how="left"
+    df[column] = pd.to_datetime(
+        df[column],
+        errors="coerce"
     )
 
     return df
 
 
-# ============================================================
-# 16. FINAL DATA QUALITY CHECK
-# ============================================================
-
-def data_quality_report(df):
+def convert_walmart_dates(
+    train,
+    test,
+    features
+):
     """
-    Generate a complete data quality report.
+    Convert Date columns in Walmart datasets.
     """
 
-    report = {
-        "Rows": len(df),
-        "Columns": len(df.columns),
-        "Duplicate_Rows": int(
-            df.duplicated().sum()
-        ),
-        "Missing_Values": int(
-            df.isnull().sum().sum()
-        )
-    }
+    train = convert_date_column(train)
+    test = convert_date_column(test)
+    features = convert_date_column(features)
 
-    if "Weekly_Sales" in df.columns:
-
-        report["Negative_Sales"] = int(
-            (df["Weekly_Sales"] < 0).sum()
-        )
-
-    return report
+    return train, test, features
 
 
 # ============================================================
-# 17. DATASET SHAPE
+# DATASET MERGING
 # ============================================================
 
-def dataset_shapes(
+def merge_walmart_data(
     train,
     test,
     features,
     stores
 ):
     """
-    Return shapes of all Walmart datasets.
+    Merge Walmart sales data with external features
+    and store information.
     """
 
-    return {
-        "Train": train.shape,
-        "Test": test.shape,
-        "Features": features.shape,
-        "Stores": stores.shape
-    }
+    train = train.merge(
+        features,
+        on=["Store", "Date", "IsHoliday"],
+        how="left"
+    )
+
+    test = test.merge(
+        features,
+        on=["Store", "Date", "IsHoliday"],
+        how="left"
+    )
+
+    train = train.merge(
+        stores,
+        on="Store",
+        how="left"
+    )
+
+    test = test.merge(
+        stores,
+        on="Store",
+        how="left"
+    )
+
+    return train, test
 
 
 # ============================================================
-# 18. DATE RANGE
+# COLUMN VALIDATION
 # ============================================================
+
+def validate_columns(
+    df,
+    required_columns,
+    dataset_name="dataset"
+):
+    """
+    Validate required columns.
+    """
+
+    missing_columns = [
+        column
+        for column in required_columns
+        if column not in df.columns
+    ]
+
+    if missing_columns:
+        raise ValueError(
+            f"{dataset_name} is missing columns: "
+            f"{missing_columns}"
+        )
+
+    return True
+
+
+def validate_walmart_columns(
+    train,
+    test,
+    features,
+    stores
+):
+    """
+    Validate required columns for all raw Walmart datasets.
+    """
+
+    validate_columns(
+        train,
+        TRAIN_REQUIRED_COLUMNS,
+        "train.csv"
+    )
+
+    validate_columns(
+        test,
+        TEST_REQUIRED_COLUMNS,
+        "test.csv"
+    )
+
+    validate_columns(
+        features,
+        FEATURES_REQUIRED_COLUMNS,
+        "features.csv"
+    )
+
+    validate_columns(
+        stores,
+        STORES_REQUIRED_COLUMNS,
+        "stores.csv"
+    )
+
+    return True
+
+
+# ============================================================
+# MISSING VALUE VALIDATION
+# ============================================================
+
+def check_missing_values(df):
+    """
+    Return missing-value counts by column.
+    """
+
+    return df.isnull().sum()
+
+
+def get_missing_value_summary(df):
+    """
+    Return only columns containing missing values.
+    """
+
+    missing = check_missing_values(df)
+
+    return missing[
+        missing > 0
+    ].sort_values(
+        ascending=False
+    )
+
+
+# ============================================================
+# DUPLICATE VALIDATION
+# ============================================================
+
+def check_duplicates(
+    df,
+    subset=None
+):
+    """
+    Return the number of duplicate records.
+    """
+
+    return int(
+        df.duplicated(
+            subset=subset
+        ).sum()
+    )
+
+
+def check_walmart_duplicates(df):
+    """
+    Check duplicate Store-Dept-Date combinations.
+    """
+
+    key_columns = [
+        "Store",
+        "Dept",
+        "Date"
+    ]
+
+    return check_duplicates(
+        df,
+        subset=key_columns
+    )
+
+
+# ============================================================
+# SALES VALIDATION
+# ============================================================
+
+def check_negative_sales(
+    df,
+    column="Weekly_Sales"
+):
+    """
+    Return records with negative weekly sales.
+    """
+
+    if column not in df.columns:
+        return pd.DataFrame()
+
+    return df[
+        df[column] < 0
+    ].copy()
+
+
+# ============================================================
+# DATE VALIDATION
+# ============================================================
+
+def check_invalid_dates(
+    df,
+    column="Date"
+):
+    """
+    Return records containing invalid dates.
+    """
+
+    if column not in df.columns:
+        return pd.DataFrame()
+
+    return df[
+        df[column].isna()
+    ].copy()
+
 
 def get_date_range(
     df,
-    date_column="Date"
+    column="Date"
 ):
     """
-    Return minimum and maximum dates.
+    Return minimum and maximum date.
     """
 
+    if column not in df.columns:
+        raise ValueError(
+            f"Column '{column}' not found."
+        )
+
     return {
-        "Start_Date": df[date_column].min(),
-        "End_Date": df[date_column].max()
+        "min_date": df[column].min(),
+        "max_date": df[column].max()
     }
 
 
 # ============================================================
-# 19. FINAL TRAIN / TEST INFORMATION
+# DATA TYPE VALIDATION
 # ============================================================
 
-def get_train_test_info(
-    train,
-    test
+def validate_numeric_columns(
+    df,
+    columns
 ):
     """
-    Return important train/test information.
+    Check whether specified columns are numeric.
     """
 
-    return {
-        "Train_Shape": train.shape,
-        "Test_Shape": test.shape,
+    invalid_columns = []
 
-        "Train_Start_Date": train["Date"].min(),
-        "Train_End_Date": train["Date"].max(),
+    for column in columns:
 
-        "Test_Start_Date": test["Date"].min(),
-        "Test_End_Date": test["Date"].max()
+        if column not in df.columns:
+            continue
+
+        if not pd.api.types.is_numeric_dtype(
+            df[column]
+        ):
+            invalid_columns.append(column)
+
+    return invalid_columns
+
+
+# ============================================================
+# WALMART DATA VALIDATION
+# ============================================================
+
+def validate_walmart_data(
+    df,
+    is_train=True
+):
+    """
+    Run the main validation checks on a Walmart dataset.
+    """
+
+    required_columns = (
+        TRAIN_REQUIRED_COLUMNS
+        if is_train
+        else TEST_REQUIRED_COLUMNS
+    )
+
+    validate_columns(
+        df,
+        required_columns,
+        "train.csv" if is_train else "test.csv"
+    )
+
+    result = {
+        "rows": len(df),
+        "columns": len(df.columns),
+        "missing_values": int(
+            df.isnull().sum().sum()
+        ),
+        "duplicate_store_dept_date": (
+            check_walmart_duplicates(df)
+        ),
+        "invalid_dates": int(
+            df["Date"].isna().sum()
+        )
     }
+
+    if is_train:
+        result["negative_sales"] = int(
+            (df["Weekly_Sales"] < 0).sum()
+        )
+
+    return result
+
+
+# ============================================================
+# DATASET SUMMARY
+# ============================================================
+
+def get_dataset_summary(df):
+    """
+    Return a complete basic dataset summary.
+    """
+
+    summary = {
+        "rows": len(df),
+        "columns": len(df.columns),
+        "missing_values": int(
+            df.isnull().sum().sum()
+        ),
+        "duplicates": int(
+            df.duplicated().sum()
+        )
+    }
+
+    if "Date" in df.columns:
+        summary["start_date"] = df["Date"].min()
+        summary["end_date"] = df["Date"].max()
+
+    if "Store" in df.columns:
+        summary["stores"] = df["Store"].nunique()
+
+    if "Dept" in df.columns:
+        summary["departments"] = df["Dept"].nunique()
+
+    if "Weekly_Sales" in df.columns:
+        summary["total_sales"] = df[
+            "Weekly_Sales"
+        ].sum()
+
+    return summary
